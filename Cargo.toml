@@ -9,6 +9,6 @@ version = "0.1.0"
 async-trait = "0.1.68" 
 futures = "0.3" # for our async / await blocks
 regex = "1" 
-reqwest = {version = "0.11", features = ["json"]}# reqwest with JSON parsing support  
+reqwest = {version = "0.11", features = ["json"]}# reqwest with JSON parsing support     
 serde = {version = "1.0.160", features = ["derive"]} 
 tokio = {version = "1", features = ["full"]}

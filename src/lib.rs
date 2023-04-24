@@ -1,8 +1,10 @@
 use async_trait::async_trait;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 
-const NASA_APOD_ENDPOINT: &str = "https://api.nasa.gov/planetary/apod";
+// const NASA_APOD_ENDPOINT: &str = "https://api.nasa.gov/planetary/apod";
 
+#[derive(Serialize, Deserialize)]
 pub struct Apod {
     title: String,
     date: String,
@@ -10,24 +12,47 @@ pub struct Apod {
     hdurl: String,
     media_type: String,
     explanation: String,
-    thumbnail_url: String,
     copyright: String,
+}
+
+impl std::fmt::Display for Apod {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(
+            fmt,
+            "APOD \n
+            title: {} \n
+            date: {} \n
+            url: {} \n
+            hdurl: {} \n
+            media_type: {} \n
+            explanation: {} \n
+            copyright: {}",
+            self.title,
+            self.date,
+            self.url,
+            self.hdurl,
+            self.media_type,
+            self.explanation,
+            self.copyright
+        )
+    }
 }
 
 #[async_trait]
 pub trait ApodClient {
     fn build(api_key: &str) -> Self;
-    fn get_apod(date: &str) -> Apod;
+    async fn get_apod(&self) -> Apod;
 }
 
 #[derive(Debug)]
 pub struct BaseApodClient {
-    api_key: String,
+    pub api_key: String,
 }
 
+#[async_trait]
 impl ApodClient for BaseApodClient {
     fn build(api_key: &str) -> BaseApodClient {
-        if (!ApiKeyValidator::is_valid(api_key)) {
+        if !ApiKeyValidator::is_valid(api_key) {
             panic!("API Key is invalid")
         }
 
@@ -36,10 +61,18 @@ impl ApodClient for BaseApodClient {
         BaseApodClient { api_key }
     }
 
-    fn get_apod(date: &str) {
+    async fn get_apod(&self) -> Apod {
         let url = "https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY";
-        let result = reqwest::get(url);
-        println!("{:?}", result);
+        let apod = reqwest::get(url)
+            .await
+            .unwrap()
+            .json::<Apod>()
+            .await
+            .unwrap();
+
+        println!("Testing");
+        println!("{}", apod);
+        return apod;
     }
 }
 

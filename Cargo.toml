@@ -1,8 +1,12 @@
 [package]
+edition = "2021"
 name = "apod-rust-client"
 version = "0.1.0"
-edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+async-trait = {version = "0.1.51", optional = true} 
+futures = "0.3" # for our async / await blocks
+regex = "1" 
+reqwest = {version = "0.11", features = ["json"]}# reqwest with JSON parsing support

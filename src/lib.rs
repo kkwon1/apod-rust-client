@@ -1,7 +1,12 @@
+//! apod-rust-client is a Rust wrapper for the [NASA APOD API](https://github.com/nasa/apod-api).
+
 use regex::Regex;
 use reqwest::Error;
 use serde::{de, Deserialize, Serialize};
+
 #[derive(Serialize, Deserialize)]
+/// Struct defining an Astronomy Picture of the Day (APOD).
+/// See reference in the [NASA APOD docs](https://github.com/nasa/apod-api#url-search-params--query-string-parameters)
 pub struct Apod {
     title: String,
     date: String,
@@ -13,13 +18,17 @@ pub struct Apod {
     copyright: Option<String>,
 }
 
+/// ApodClient struct which holds the `api_key` used for authorizing API calls.
+/// The `api_key` field must be exactly 40 characters in length, and consist of alphanumeric characters only
 pub struct ApodClient {
     api_key: String,
 }
 
 impl ApodClient {
-    // Constructor for ApodClient struct.
-    // It validates that the API Key is well formed, and then creates the struct
+    /// Builds an instance of ApodClient.
+    /// Validates that the API key is well formed, or else panics.
+    ///
+    /// TODO: Future implementation should return an error instead of panic.
     pub fn build(api_key: &str) -> ApodClient {
         if !ApiKeyValidator::is_valid(api_key) {
             panic!("API Key is invalid")
@@ -30,35 +39,44 @@ impl ApodClient {
         ApodClient { api_key }
     }
 
-    // The simplest API call is to make the request with no additional parameters
-    // besides the API Key. This results in returning the latest APOD
+    /// Returns the latest APOD available from the NASA APOD API.
+    /// This does not require any additional query parameters.
     pub async fn get_latest_apod(&self) -> Apod {
         let url = build_url(self);
         get_apod(&url).await.unwrap()
     }
 
-    // Return the APOD for a specified date.
-    // The format for date must always be `yyyy-mm-dd`
+    /// Returns the APOD for a specified date.
+    /// The format for date must always be `yyyy-mm-dd`.
+    ///
+    /// TOOD: Add validation to ensure date format is correct, or pass in a Date type.
     pub async fn get_apod(&self, date: &str) -> Apod {
         let url = build_url(self);
         let date_url = format!("{}{}{}", url, "&date=", date);
         get_apod(&date_url).await.unwrap()
     }
 
-    // Return a vector of APODs given a count
-    // The APODs are selected at random.
-    // `count` input must be greater than 0 and less than or equal to 100
+    /// Return a vector of APODs given a count.
+    /// The APODs are selected at random.
+    /// `count` input must be greater than 0 and less than or equal to 100.
+    ///
+    /// TODO: Add validation
     pub async fn get_random_apods(&self, count: u32) -> Vec<Apod> {
         let url = build_url(self);
         let date_url = format!("{}{}{}", url, "&count=", count);
         get_apod(&date_url).await.unwrap()
     }
 
+    /// Return a vector of APODs given the start date - inclusive.
+    /// There is no limit to how many APODs you can retrieve.
     pub async fn get_apod_from(&self, start_date: &str) -> Vec<Apod> {
         let url = build_url(self);
         let date_url = format!("{}{}{}", url, "&start_date=", start_date);
         get_apod(&date_url).await.unwrap()
     }
+
+    /// Return a vector of APODs given the start and end date - inclusive.
+    /// `end_date` MUST be greater than or equal to the start date.
     pub async fn get_apod_from_to(&self, start_date: &str, end_date: &str) -> Vec<Apod> {
         let url = build_url(self);
         let date_url = format!(

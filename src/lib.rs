@@ -1,6 +1,7 @@
 //! apod-rust-client is a Rust wrapper for the [NASA APOD API](https://github.com/nasa/apod-api).
+mod validators;
 
-use regex::Regex;
+use crate::validators::api_key_validator::is_valid;
 use reqwest::Error;
 use serde::{de, Deserialize, Serialize};
 
@@ -30,7 +31,7 @@ impl ApodClient {
     ///
     /// TODO: Future implementation should return an error instead of panic.
     pub fn build(api_key: &str) -> ApodClient {
-        if !ApiKeyValidator::is_valid(api_key) {
+        if !is_valid(api_key) {
             panic!("API Key is invalid")
         }
 
@@ -107,47 +108,5 @@ async fn get_apod<T: de::DeserializeOwned>(url: &str) -> Result<T, Error> {
             println!("Failed to parse as APOD: {}", e);
             Err(e)
         }
-    }
-}
-
-struct ApiKeyValidator {}
-
-impl ApiKeyValidator {
-    fn is_valid(api_key: &str) -> bool {
-        // The valid regex for a NASA API key consists of lower, upper case alphabet, and digits.
-        // It must be exactly 40 characters long.
-        let regex: Regex = Regex::new(r"^[a-zA-Z0-9]{40}$").unwrap();
-
-        return regex.is_match(api_key);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::ApiKeyValidator;
-
-    #[test]
-    fn valid_api_key() {
-        let is_valid = ApiKeyValidator::is_valid("hrDwl56I9DKfPstNy9cqaTn0S68dTYpo4kB96dku");
-        assert_eq!(is_valid, true);
-    }
-
-    #[test]
-    fn invalid_api_key_too_short() {
-        let is_valid = ApiKeyValidator::is_valid("hrDwl56I9DKfPstNy9cq");
-        assert_eq!(is_valid, false);
-    }
-
-    #[test]
-    fn invalid_api_key_too_long() {
-        let is_valid =
-            ApiKeyValidator::is_valid("hrDwl56I9DKfPstNy9cqaTn0S68dTYpo4kB96dkuHfo389sJWE");
-        assert_eq!(is_valid, false);
-    }
-
-    #[test]
-    fn invalid_api_key_special_characters() {
-        let is_valid = ApiKeyValidator::is_valid("hrDwl56I9DKfPstNy9cqaTn%S68dTYpo4kB96dku");
-        assert_eq!(is_valid, false);
     }
 }

@@ -1,7 +1,6 @@
-use async_trait::async_trait;
 use regex::Regex;
+use reqwest::Error;
 use serde::{Deserialize, Serialize};
-
 #[derive(Serialize, Deserialize)]
 pub struct Apod {
     title: String,
@@ -10,62 +9,41 @@ pub struct Apod {
     hdurl: String,
     media_type: String,
     explanation: String,
-    thumbnail_url: String,
-    copyright: String,
+    thumbnail_url: Option<String>,
+    copyright: Option<String>,
 }
 
-#[async_trait]
-pub trait ApodClient {
-    fn build(api_key: &str) -> Self;
-    async fn get_latest_apod(&self) -> Apod;
-    async fn get_apod(&self, date: &str) -> Apod;
-    async fn get_random_apods(&self, count: u32) -> Vec<Apod>;
-    async fn get_apod_from(&self, start_date: &str) -> Vec<Apod>;
-    async fn get_apod_from_to(&self, start_date: &str, end_date: &str) -> Vec<Apod>;
-}
-
-pub struct BaseApodClient {
+pub struct ApodClient {
     api_key: String,
 }
 
-#[async_trait]
-impl ApodClient for BaseApodClient {
-    // Constructor for BaseApodClient struct.
+impl ApodClient {
+    // Constructor for ApodClient struct.
     // It validates that the API Key is well formed, and then creates the struct
-    fn build(api_key: &str) -> BaseApodClient {
+    pub fn build(api_key: &str) -> ApodClient {
         if !ApiKeyValidator::is_valid(api_key) {
             panic!("API Key is invalid")
         }
 
         let api_key: String = api_key.to_string();
 
-        BaseApodClient { api_key }
+        ApodClient { api_key }
     }
 
     // The simplest API call is to make the request with no additional parameters
     // besides the API Key. This results in returning the latest APOD
-    async fn get_latest_apod(&self) -> Apod {
+    pub async fn get_latest_apod(&self) -> Apod {
         let url = build_url(self);
-        let apod = reqwest::get(url)
-            .await
-            .unwrap()
-            .json::<Apod>()
-            .await
-            .unwrap();
+        let apod = get_single_apod(&url).await.unwrap();
         return apod;
     }
 
     // Return the APOD for a specified date.
     // The format for date must always be `yyyy-mm-dd`
-    async fn get_apod(&self, date: &str) -> Apod {
+    pub async fn get_apod(&self, date: &str) -> Apod {
         let url = build_url(self);
         let date_url = format!("{}{}{}", url, "&date=", date);
-        let apod = reqwest::get(date_url)
-            .await
-            .unwrap()
-            .json::<Apod>()
-            .await
-            .unwrap();
+        let apod = get_single_apod(&date_url).await.unwrap();
 
         return apod;
     }
@@ -73,7 +51,7 @@ impl ApodClient for BaseApodClient {
     // Return a vector of APODs given a count
     // The APODs are selected at random.
     // `count` input must be greater than 0 and less than or equal to 100
-    async fn get_random_apods(&self, count: u32) -> Vec<Apod> {
+    pub async fn get_random_apods(&self, count: u32) -> Vec<Apod> {
         let url = build_url(self);
         let date_url = format!("{}{}{}", url, "&count=", count);
         let apods = reqwest::get(date_url)
@@ -86,7 +64,7 @@ impl ApodClient for BaseApodClient {
         return apods;
     }
 
-    async fn get_apod_from(&self, start_date: &str) -> Vec<Apod> {
+    pub async fn get_apod_from(&self, start_date: &str) -> Vec<Apod> {
         let url = build_url(self);
         let date_url = format!("{}{}{}", url, "&start_date=", start_date);
         let apods = reqwest::get(date_url)
@@ -98,7 +76,7 @@ impl ApodClient for BaseApodClient {
 
         return apods;
     }
-    async fn get_apod_from_to(&self, start_date: &str, end_date: &str) -> Vec<Apod> {
+    pub async fn get_apod_from_to(&self, start_date: &str, end_date: &str) -> Vec<Apod> {
         let url = build_url(self);
         let date_url = format!(
             "{}{}{}{}{}",
@@ -115,9 +93,29 @@ impl ApodClient for BaseApodClient {
     }
 }
 
-fn build_url(client: &BaseApodClient) -> String {
+fn build_url(client: &ApodClient) -> String {
     let base_url: String = "https://api.nasa.gov/planetary/apod?api_key=".to_string();
     format!("{}{}", base_url, client.api_key)
+}
+
+async fn get_single_apod(url: &str) -> Result<Apod, Error> {
+    let response = reqwest::get(url).await;
+    let apod = match response {
+        Ok(response) => response.json::<Apod>().await,
+        Err(e) => {
+            println!("Failed to receive response: {}", e);
+            Err(e)
+        }
+    };
+    match apod {
+        Ok(apod) => {
+            return Ok(apod);
+        }
+        Err(e) => {
+            println!("Failed to parse as APOD: {}", e);
+            Err(e)
+        }
+    }
 }
 
 struct ApiKeyValidator {}

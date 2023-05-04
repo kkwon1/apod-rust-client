@@ -1,6 +1,6 @@
 use regex::Regex;
 use reqwest::Error;
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 pub struct Apod {
     title: String,
@@ -34,8 +34,7 @@ impl ApodClient {
     // besides the API Key. This results in returning the latest APOD
     pub async fn get_latest_apod(&self) -> Apod {
         let url = build_url(self);
-        let apod = get_single_apod(&url).await.unwrap();
-        return apod;
+        get_apod(&url).await.unwrap()
     }
 
     // Return the APOD for a specified date.
@@ -43,9 +42,7 @@ impl ApodClient {
     pub async fn get_apod(&self, date: &str) -> Apod {
         let url = build_url(self);
         let date_url = format!("{}{}{}", url, "&date=", date);
-        let apod = get_single_apod(&date_url).await.unwrap();
-
-        return apod;
+        get_apod(&date_url).await.unwrap()
     }
 
     // Return a vector of APODs given a count
@@ -54,27 +51,13 @@ impl ApodClient {
     pub async fn get_random_apods(&self, count: u32) -> Vec<Apod> {
         let url = build_url(self);
         let date_url = format!("{}{}{}", url, "&count=", count);
-        let apods = reqwest::get(date_url)
-            .await
-            .unwrap()
-            .json::<Vec<Apod>>()
-            .await
-            .unwrap();
-
-        return apods;
+        get_apod(&date_url).await.unwrap()
     }
 
     pub async fn get_apod_from(&self, start_date: &str) -> Vec<Apod> {
         let url = build_url(self);
         let date_url = format!("{}{}{}", url, "&start_date=", start_date);
-        let apods = reqwest::get(date_url)
-            .await
-            .unwrap()
-            .json::<Vec<Apod>>()
-            .await
-            .unwrap();
-
-        return apods;
+        get_apod(&date_url).await.unwrap()
     }
     pub async fn get_apod_from_to(&self, start_date: &str, end_date: &str) -> Vec<Apod> {
         let url = build_url(self);
@@ -82,14 +65,7 @@ impl ApodClient {
             "{}{}{}{}{}",
             url, "&start_date=", start_date, "&end_date=", end_date
         );
-        let apods = reqwest::get(date_url)
-            .await
-            .unwrap()
-            .json::<Vec<Apod>>()
-            .await
-            .unwrap();
-
-        return apods;
+        get_apod(&date_url).await.unwrap()
     }
 }
 
@@ -98,19 +74,17 @@ fn build_url(client: &ApodClient) -> String {
     format!("{}{}", base_url, client.api_key)
 }
 
-async fn get_single_apod(url: &str) -> Result<Apod, Error> {
+async fn get_apod<T: de::DeserializeOwned>(url: &str) -> Result<T, Error> {
     let response = reqwest::get(url).await;
-    let apod = match response {
-        Ok(response) => response.json::<Apod>().await,
+    let apods = match response {
+        Ok(response) => response.json::<T>().await,
         Err(e) => {
             println!("Failed to receive response: {}", e);
             Err(e)
         }
     };
-    match apod {
-        Ok(apod) => {
-            return Ok(apod);
-        }
+    match apods {
+        Ok(apods) => Ok(apods),
         Err(e) => {
             println!("Failed to parse as APOD: {}", e);
             Err(e)

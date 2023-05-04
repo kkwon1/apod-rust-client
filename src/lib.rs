@@ -10,22 +10,8 @@ pub struct Apod {
     hdurl: String,
     media_type: String,
     explanation: String,
-}
-
-impl std::fmt::Display for Apod {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(
-            fmt,
-            "APOD \n
-            title: {} \n
-            date: {} \n
-            url: {} \n
-            hdurl: {} \n
-            media_type: {} \n
-            explanation: {}",
-            self.title, self.date, self.url, self.hdurl, self.media_type, self.explanation,
-        )
-    }
+    thumbnail_url: String,
+    copyright: String,
 }
 
 #[async_trait]
@@ -33,12 +19,13 @@ pub trait ApodClient {
     fn build(api_key: &str) -> Self;
     async fn get_latest_apod(&self) -> Apod;
     async fn get_apod(&self, date: &str) -> Apod;
-    async fn get_random_apods(&self, count: i8) -> Vec<Apod>;
+    async fn get_random_apods(&self, count: u32) -> Vec<Apod>;
+    async fn get_apod_from(&self, start_date: &str) -> Vec<Apod>;
+    async fn get_apod_from_to(&self, start_date: &str, end_date: &str) -> Vec<Apod>;
 }
 
-#[derive(Debug)]
 pub struct BaseApodClient {
-    pub api_key: String,
+    api_key: String,
 }
 
 #[async_trait]
@@ -65,8 +52,6 @@ impl ApodClient for BaseApodClient {
             .json::<Apod>()
             .await
             .unwrap();
-
-        println!("{}", apod);
         return apod;
     }
 
@@ -82,11 +67,13 @@ impl ApodClient for BaseApodClient {
             .await
             .unwrap();
 
-        println!("{}", apod);
         return apod;
     }
 
-    async fn get_random_apods(&self, count: i8) -> Vec<Apod> {
+    // Return a vector of APODs given a count
+    // The APODs are selected at random.
+    // `count` input must be greater than 0 and less than or equal to 100
+    async fn get_random_apods(&self, count: u32) -> Vec<Apod> {
         let url = build_url(self);
         let date_url = format!("{}{}{}", url, "&count=", count);
         let apods = reqwest::get(date_url)
@@ -96,16 +83,40 @@ impl ApodClient for BaseApodClient {
             .await
             .unwrap();
 
-        for apod in &apods {
-            println!("{}", apod);
-        }
+        return apods;
+    }
+
+    async fn get_apod_from(&self, start_date: &str) -> Vec<Apod> {
+        let url = build_url(self);
+        let date_url = format!("{}{}{}", url, "&start_date=", start_date);
+        let apods = reqwest::get(date_url)
+            .await
+            .unwrap()
+            .json::<Vec<Apod>>()
+            .await
+            .unwrap();
+
+        return apods;
+    }
+    async fn get_apod_from_to(&self, start_date: &str, end_date: &str) -> Vec<Apod> {
+        let url = build_url(self);
+        let date_url = format!(
+            "{}{}{}{}{}",
+            url, "&start_date=", start_date, "&end_date=", end_date
+        );
+        let apods = reqwest::get(date_url)
+            .await
+            .unwrap()
+            .json::<Vec<Apod>>()
+            .await
+            .unwrap();
 
         return apods;
     }
 }
 
 fn build_url(client: &BaseApodClient) -> String {
-    let base_url = "https://api.nasa.gov/planetary/apod?api_key=".to_string();
+    let base_url: String = "https://api.nasa.gov/planetary/apod?api_key=".to_string();
     format!("{}{}", base_url, client.api_key)
 }
 
@@ -118,5 +129,35 @@ impl ApiKeyValidator {
         let regex: Regex = Regex::new(r"^[a-zA-Z0-9]{40}$").unwrap();
 
         return regex.is_match(api_key);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ApiKeyValidator;
+
+    #[test]
+    fn valid_api_key() {
+        let is_valid = ApiKeyValidator::is_valid("hrDwl56I9DKfPstNy9cqaTn0S68dTYpo4kB96dku");
+        assert_eq!(is_valid, true);
+    }
+
+    #[test]
+    fn invalid_api_key_too_short() {
+        let is_valid = ApiKeyValidator::is_valid("hrDwl56I9DKfPstNy9cq");
+        assert_eq!(is_valid, false);
+    }
+
+    #[test]
+    fn invalid_api_key_too_long() {
+        let is_valid =
+            ApiKeyValidator::is_valid("hrDwl56I9DKfPstNy9cqaTn0S68dTYpo4kB96dkuHfo389sJWE");
+        assert_eq!(is_valid, false);
+    }
+
+    #[test]
+    fn invalid_api_key_special_characters() {
+        let is_valid = ApiKeyValidator::is_valid("hrDwl56I9DKfPstNy9cqaTn%S68dTYpo4kB96dku");
+        assert_eq!(is_valid, false);
     }
 }

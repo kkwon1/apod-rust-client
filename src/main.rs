@@ -2,7 +2,7 @@ use apod_rust_client::ApodClient;
 
 #[tokio::main]
 async fn main() {
-    let client: ApodClient = ApodClient::build("0GGQn6xgIdHnVbNo9eKBI1lZstLXL0304xH0MICL");
+    let client: ApodClient = ApodClient::build("0GGQn6xgIdHnVbNo9eKBI1lZstLXL0304xH0MICL").unwrap();
 
     let _ = client.get_latest_apod().await;
     let _ = client.get_apod("2023-04-01").await;

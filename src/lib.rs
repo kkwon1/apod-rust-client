@@ -11,14 +11,14 @@ use snafu::prelude::*;
 /// Struct defining an Astronomy Picture of the Day (APOD).
 /// See reference in the [NASA APOD docs](https://github.com/nasa/apod-api#url-search-params--query-string-parameters)
 pub struct Apod {
-    title: String,
-    date: String,
-    url: String,
-    hdurl: String,
-    media_type: String,
-    explanation: String,
-    thumbnail_url: Option<String>,
-    copyright: Option<String>,
+    pub title: String,
+    pub date: String,
+    pub url: String,
+    pub hdurl: String,
+    pub media_type: String,
+    pub explanation: String,
+    pub thumbnail_url: Option<String>,
+    pub copyright: Option<String>,
 }
 
 /// ApodClient struct which holds the `api_key` used for authorizing API calls.
